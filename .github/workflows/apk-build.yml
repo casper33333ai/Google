@@ -1,4 +1,4 @@
-name: APK-Forge-Build
+name: build
 
 on:
   push:
@@ -6,33 +6,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  apk:
+    name: Build Android APK
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: 📥 Code ophalen
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 Node.js instellen
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
-      - name: ☕ Java 17 instellen
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: 🏗️ APK Bouwen
+      - name: Build APK
         run: node convert-to-apk.js
 
-      - name: 📦 Upload APK Artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
+          name: app-release
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
