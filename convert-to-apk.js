@@ -1,6 +1,5 @@
 /**
- * APK FORGE - AUTOMATISCHE URL WRAPPER
- * Verandert https://www.google.nl in een Native Android App.
+ * APK FORGE - AUTOMATISCHE URL WRAPPER + ICON INJECTOR
  */
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -14,50 +13,58 @@ async function startForge() {
 
   try {
     if (!fs.existsSync('package.json')) {
-      log('Initialiseren van package.json...');
       execSync('npm init -y', { stdio: 'ignore' });
     }
 
-    log('📦 Installeren van Native Bridge (Capacitor)...');
+    log('📦 Installeren van Capacitor & Plugins...');
     execSync('npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/status-bar', { stdio: 'inherit' });
 
     if (!fs.existsSync('www')) {
       fs.mkdirSync('www', { recursive: true });
-      fs.writeFileSync(path.join('www', 'index.html'), '<html><head><title>Loading...</title><style>body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;color:#fff;font-family:sans-serif;}</style></head><body>Verbinding maken met MijnNativeApp...</body></html>');
+      fs.writeFileSync(path.join('www', 'index.html'), '<html><body style="background:#000"></body></html>');
     }
 
-    log('⚙️ Configureren van de Native Shell...');
+    log('⚙️ Configureren van Capacitor...');
     const capConfig = {
       appId: "com.forge.myapp",
       appName: "MijnNativeApp",
       webDir: "www",
-      server: {
-        url: "https://www.google.nl",
-        cleartext: true
-      },
-      plugins: {
-        StatusBar: {
-          overlay: true,
-          style: "DARK"
-        }
-      }
+      server: { url: "https://www.google.nl", cleartext: true }
     };
     fs.writeFileSync('capacitor.config.json', JSON.stringify(capConfig, null, 2));
 
     if (!fs.existsSync('android')) {
-      log('🤖 Android native bestanden genereren...');
+      log('🤖 Android platform toevoegen...');
       execSync('npx cap add android', { stdio: 'inherit' });
     }
 
-    log('🔄 Instellingen synchroniseren...');
+    // ICON LOGICA
+    if (fs.existsSync('app-icon.png')) {
+      log('🎨 Custom icoon gedetecteerd, installeren...');
+      const resPath = 'android/app/src/main/res';
+      const mipmapFolders = [
+        'mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi'
+      ];
+
+      mipmapFolders.forEach(folder => {
+        const targetDir = path.join(resPath, folder);
+        if (fs.existsSync(targetDir)) {
+          fs.copyFileSync('app-icon.png', path.join(targetDir, 'ic_launcher.png'));
+          fs.copyFileSync('app-icon.png', path.join(targetDir, 'ic_launcher_round.png'));
+          // Voor nieuwere Android versies ook adaptive icon background vervangen
+          if (fs.existsSync(path.join(targetDir, 'ic_launcher_foreground.png'))) {
+             fs.copyFileSync('app-icon.png', path.join(targetDir, 'ic_launcher_foreground.png'));
+          }
+        }
+      });
+    }
+
+    log('🔄 Synchroniseren...');
     execSync('npx cap sync android', { stdio: 'inherit' });
 
-    log('🏗️ APK Compileren via Gradle...');
+    log('🏗️ APK Compileren...');
     const androidDir = path.join(process.cwd(), 'android');
-    
-    if (process.platform !== 'win32') {
-      execSync('chmod +x gradlew', { cwd: androidDir });
-    }
+    if (process.platform !== 'win32') execSync('chmod +x gradlew', { cwd: androidDir });
 
     const gradleCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
     execSync(`${gradleCmd} assembleDebug`, { 
@@ -66,8 +73,7 @@ async function startForge() {
       env: { ...process.env, JAVA_HOME: process.env.JAVA_HOME_17_X64 || process.env.JAVA_HOME }
     });
 
-    log('✅ KLAAR! Je APK staat klaar.');
-
+    log('✅ APK Succesvol gegenereerd!');
   } catch (err) {
     error('Build mislukt: ' + err.message);
   }
